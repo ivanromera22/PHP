@@ -1,0 +1,6 @@
+CREATE TABLE tasques (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    titol VARCHAR(255) NOT NULL,
+    descripcio TEXT,
+    estat BOOLEAN NOT NULL DEFAULT 0
+);
