@@ -13,6 +13,8 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
+$options = getopt("a:d:t:", ["action:", "description:", "title:"]);
+
 
 if (!CLI()) {
     echo "Aquest script és d'unic ús a CLI\n";
@@ -83,53 +85,83 @@ function eliminar_tasca($conn, $titol) {
         return;
     }
 
-    $query = "DELETE FROM tasques WHERE id = '$titol'";
+    $query = "SELECT * FROM tasques WHERE id = '$titol'";
     $exec = mysqli_query($conn, $query);
-
-    if ($exec) {
-        echo "Tasca eliminada amb èxit.\n";
+    
+    if (mysqli_num_rows($exec) > 0) {
+        $query = "DELETE FROM tasques WHERE id = '$titol'";
+        $exec = mysqli_query($conn, $query);
+        echo "Tasca $titol eliminada amb èxit.\n";
     } else {
-        echo "Error al eliminar la tasca.\n";
+        echo "No s'ha trobat cap tasca amb l'id $titol.\n";
     }
+
 }
 
 function help() {
     echo "\n========================================================================\n";
     echo "Això es un gestor de tasques\n";
-    echo "(Recorda que la sintaxis es molt important)\n";
-    echo "Per afegir: php task_manager add <títol> <descripció>\n";
-    echo "Per editar: php task_manager edit <títol> \n";
-    echo "Per eliminar: php task_manager delete <id>\n";
-    echo "Per llistar tasques pendents: php task_manager list\n";
+    echo "(Recorda que la sintaxis es molt important)\n\n";
+
+    echo "Per afegir:\n";
+    echo "php task_manager -a add -t <títol> -d <descripció>\n";
+    echo "php task_manager --action add --tittle <títol> --description <descripció>\n";
+    echo "Fins i tot pots barrejar els parametres.\n";
+
+    echo "Per editar:\n"; 
+    echo "php task_manager -a edit -t <id>\n";
+    echo "php task_manager --action edit --tittle <id> \n";
+    echo "Fins i tot pots barrejar els parametres.\n";
+    
+    
+    echo "Per eliminar:\n";
+    echo "php task_manager -a delete -t <id>";
+    echo "php task_manager --action delete --tittle <id> \n";
+    echo "Fins i tot pots barrejar els parametres.\n";
+
+    echo "Per llistar tasques:\n";
+    echo "php task_manager -a list\n";
+    echo "php task_manager --action list\n";
+    echo "Fins i tot pots barrejar els parametres.\n";
     echo "========================================================================\n\n";
 }
 
-switch ($argv[1]) {
+switch ($options["a"] ?? $options["action"]) {
     case "add":
-        if ($argc == 4) {
-            afegir_tasca($conn, $argv[2], $argv[3]);
+        if ($argc == 7) {
+            $titol = $options["t"] ?? $options["title"];
+            $descripcio = $options["d"] ?? $options["description"];
+
+            afegir_tasca($conn, $titol, $descripcio);
         } else {
-            echo "error : php task_manager.php add <titol> <descripció>\n"; 
+            echo "Per afegir una tasca hi ha dos formes:\n";
+            echo "error : php task_manager.php -a add <titol> -d <descripció>\n";
+            echo "error : php task_manager.php --action add -title <títol> -description <descripció>\n";
         }
         break;
         
     case "edit":
-        if ($argc == 3) {
-            editar_tasca($conn, $argv[2]);
+        if ($argc == 5) {
+            $titol = $options["t"] ?? $options["title"];
+            editar_tasca($conn, $titol);
         } else {
-            echo "error : php task_manager.php edit <titol>\n";
+            echo "Per editar una tasca hi ha dos formes";
+            echo "php task_manager -a edit -t <id>\n";
+            echo "php task_manager --action edit --title <id> \n";
         }
         break;
         
     case "delete":
-        if ($argc == 3) {
-            eliminar_tasca($conn, $argv[2]);
+        if ($argc == 5) {
+            $titol = $options["t"] ?? $options["title"];
+            eliminar_tasca($conn, $titol);
         } else {
-            echo "error : php task_manager.php delete <titol>\n";
+            echo "php task_manager -a delete -t <id>\n";
+            echo "php task_manager --action delete --title <id> \n";
         }
         break;
     case "list":
-        if ($argc == 2) {
+        if ($argc == 3) {
             llistar_tasca($conn);
         } else {
             echo "error : php task_manager.php list\n";
@@ -137,6 +169,6 @@ switch ($argv[1]) {
         break;
     default:
         help();
-
+        
 }
 ?>
