@@ -15,9 +15,20 @@ if ($conn->connect_error) {
 
 $options = getopt("a:d:t:", ["action:", "description:", "title:"]);
 
+function carregar_missatges($arxiu) {
+    if (file_exists($arxiu)) {
+        $json = file_get_contents($arxiu);
+        return json_decode($json, true);
+    } else { 
+        die("No s'ha trobat el fitxer de missatges. \n");
+    }
+}
+
+$missatges = carregar_missatges('messages.json');
+
 
 if (!CLI()) {
-    echo "Aquest script és d'unic ús a CLI\n";
+    echo $missatges["cli_only"];
     return true;
 }
 
@@ -27,8 +38,9 @@ function CLI() {
 
 // AFEGIR TASCA 
 function afegir_tasca($conn, $titol, $descripcio) {
+    global $missatges; // si no desconoce la variable 
     if (empty($titol) || empty($descripcio)) {
-        echo "[Error de sintaxis] Inserta text dins dels camps.\n";
+        echo $missatges["tasca_camps8"];
         return;
     }
 
@@ -36,17 +48,17 @@ function afegir_tasca($conn, $titol, $descripcio) {
     $exec = mysqli_query($conn, $query);
 
     if ($exec) {
-        echo "Tasca afegida amb èxit.\n";
+        echo $missatges["tasca_afegida"];
     } else {
-        echo "Error al afegir la tasca.\n";
+        echo $missatges["tasca_error"];
     }
 }
 
 // EDITAR TASCA
 function editar_tasca($conn, $titol) {
-
+    global $missatges; // si no desconoce la variable 
     if (empty($titol)) {
-        echo "[Error de sintaxis] Inserta text en el camp.\n";
+        echo $missatges["tasca_camps8"];
         return;
     }
 
@@ -56,9 +68,9 @@ function editar_tasca($conn, $titol) {
     if (mysqli_num_rows($exec) > 0) {
         $query = "UPDATE tasques SET estat = '1' WHERE id = '$titol'";
         $exec = mysqli_query($conn, $query);
-        echo "Tasca $titol editada amb èxit.\n";
+        echo $missatges["tasca_edit"];
     } else {
-        echo "No s'ha trobat cap tasca amb l'id $titol.\n";
+        echo $missatges["tasca_noedit"];
     }
 
 }
@@ -130,7 +142,8 @@ function help() {
     echo "==============================================================================\n\n";
 }
 
-switch ($options["a"] ?? $options["action"]) {
+
+switch ($options["a"] ?? $options["action"] ?? null) {
     case "add":
         if ($argc == 7) {
             $titol = $options["t"] ?? $options["title"];

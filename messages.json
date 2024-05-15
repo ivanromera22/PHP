@@ -1,0 +1,9 @@
+{
+    "cli_only": "Aquest script és d'unic ús a CLI",
+    "tasca_camps8": "[Error de sintaxis] Inserta text dins dels camps \n",
+    "tasca_afegida": "Tasca afegida amb èxit \n",
+    "tasca_error": "Error al afegir la tasca \n",
+    "tasca_edit": "Tasca editada amb èxit.\n",
+    "tasca_noedit": "No s'ha trobat cap tasca amb l'id $titol.\n"
+    
+}
