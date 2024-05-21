@@ -1,9 +1,25 @@
 {
-    "cli_only": "Aquest script és d'unic ús a CLI",
-    "tasca_camps8": "[Error de sintaxis] Inserta text dins dels camps \n",
-    "tasca_afegida": "Tasca afegida amb èxit \n",
-    "tasca_error": "Error al afegir la tasca \n",
+    "cli_only": "Aquest script és d'unic ús a CLI.\n",
+    "tasca_camps8": "[Error de sintaxis] Inserta text dins dels camps.\n",
+    "tasca_afegida": "Tasca afegida amb èxit.\n",
+    "tasca_error": "Error al afegir la tasca.\n",
     "tasca_edit": "Tasca editada amb èxit.\n",
-    "tasca_noedit": "No s'ha trobat cap tasca amb l'id $titol.\n"
-    
+    "tasca_noTrobada": "No s'ha trobat cap tasca amb aquesta id.\n",
+    "tasca_ja_editada": "La tasca ja ha estat editada.\n",
+    "llistar_tasques": "LListant tasques pendents: \n",
+    "noTasques_pendents": "No hi ha tasques pendents.\n",
+    "tasca_eliminada": "Tasca eliminada amb èxit.\n",
+    "help": "\n==============================================================================\nAixò és un gestor de tasques\n(Recorda que la sintaxis és molt important)\n\nPer afegir:\nphp task_manager -a add -t <títol> -d <descripció>\nphp task_manager --action add --title <títol> --description <descripció>\nFins i tot pots barrejar els paràmetres.\n\nPer editar:\nphp task_manager -a edit -t <id>\nphp task_manager --action edit --title <id>\nFins i tot pots barrejar els paràmetres.\n\nPer eliminar:\nphp task_manager -a delete -t <id>\nphp task_manager --action delete --title <id>\nFins i tot pots barrejar els paràmetres.\n\nPer llistar tasques:\nphp task_manager -a list\nphp task_manager --action list\nFins i tot pots barrejar els paràmetres.\n==============================================================================\n\n",
+    "add_help": "Per afegir una tasca hi ha dos formes:\nphp task_manager -a add -t <títol> -d <descripció>\nphp task_manager --action add --title <títol> --description <descripció>\nFins i tot pots barrejar els paràmetres.\n",
+    "edit_help": "Per editar una tasca hi ha dos formes:\nphp task_manager -a edit -t <id>\nphp task_manager --action edit --title <id>\nFins i tot pots barrejar els paràmetres.\n",
+    "delete_help": "Per eliminar una tasca hi ha dos formes:\nphp task_manager -a delete -t <id>\nphp task_manager --action delete --title <id>\nFins i tot pots barrejar els paràmetres.\n",
+    "list_help": "Per llistar tasques:\nphp task_manager -a list\nphp task_manager --action list\nFins i tot pots barrejar els paràmetres.\n",
+    "seleccionar_tipus": "Selecciona el tipus d'emmagatzematge (json o sql): \n",
+    "tipus_invalid": "Tipus d'emmagatzematge no vàlid.\n",
+    "connexio_fallida_sql": "Connexió fallida amb SQL.\n",
+    "error_crear_bd": "Error al crear la base de dades.\n",
+    "error_crear_taula": "Error al crear la taula.\n",
+    "error_crear_arxiu_json": "Error al crear l'arxiu JSON.\n",
+    "error_tasques_json": "No s'ha trobat el fitxer de tasques JSON.\n"
+
 }

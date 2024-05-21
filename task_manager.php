@@ -1,19 +1,12 @@
 <?php
-
 $servername = "localhost";
 $username = "root";
 $password = "L@p1neda";
-$db = "tasks";
+$db = "task";
 
-// Crear conexió
-$conn = mysqli_connect($servername, $username, $password, $db);
+$fitxerConf = getenv('HOME') . '/.config/task_manager.cfg';
+$jsonFile = getenv('HOME') . '/.config/task-manager.json';
 
-// Comprovar conexió
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
-
-$options = getopt("a:d:t:", ["action:", "description:", "title:"]);
 
 function carregar_missatges($arxiu) {
     if (file_exists($arxiu)) {
@@ -23,123 +16,261 @@ function carregar_missatges($arxiu) {
         die("No s'ha trobat el fitxer de missatges. \n");
     }
 }
-
 $missatges = carregar_missatges('messages.json');
 
 
-if (!CLI()) {
-    echo $missatges["cli_only"];
-    return true;
+$config = parse_ini_file($fitxerConf, true);
+$tipusGuardar = $config['Main']['storage-type'] ?? '';
+
+if (empty($tipusGuardar)) {
+    echo $missatges["seleccionar_tipus"];
+    $tipusGuardar = trim(fgets(STDIN));
+    
+    if ($tipusGuardar != 'sql' && $tipusGuardar != 'json') {
+        die($missatges["tipus_invalid"]);
+    }
+    
+    file_put_contents($fitxerConf, "[Main]\nstorage-type = $tipusGuardar\n");
 }
 
-function CLI() {
-    return php_sapi_name() === 'cli';
+// SQL
+if ($tipusGuardar == 'sql') {
+    $conn = mysqli_connect($servername,$username, $password);
+
+    if (!$conn) {
+        die($missatges["connexio_fallida_sql"]);
+    }
+
+    $sql = "CREATE DATABASE IF NOT EXISTS $db";
+    if (!mysqli_query($conn, $sql)) {
+        die($missatges["error_crear_bd"]);
+    } 
+    
+    mysqli_select_db($conn, $db);
+
+    $sql = "CREATE TABLE IF NOT EXISTS tasques (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        titol VARCHAR(255) NOT NULL,
+        descripcio TEXT,
+        estat BOOLEAN NOT NULL DEFAULT 0
+    );";
+
+    if (!mysqli_query($conn, $sql)) {
+        die($missatges["error_crear_taula"]);
+    } 
+    mysqli_close($conn);
 }
+
+//json
+if ($tipusGuardar == 'json') {
+    if (!file_exists($jsonFile)) {
+        $startFitxer = [];
+        if (file_put_contents($jsonFile, json_encode($startFitxer))) {
+        } else {
+            die($missatges["error_crear_arxiu_json"]);
+        }
+    }
+}
+
+$options = getopt("a:d:t:", ["action:", "description:", "title:"]);
+
+
+
+function carregar_tasquesJSON($jsonFile){
+    global $missatges;
+    if (file_exists($jsonFile)) {
+        $json = file_get_contents($jsonFile);
+        return json_decode($json, true);
+    } else {
+        die($missatges["error_tasques_json"]);
+    }
+}
+
+
+function guardarTasquesJSON($jsonFile, $tasques) {
+    file_put_contents($jsonFile, json_encode($tasques));
+}
+
 
 // AFEGIR TASCA 
-function afegir_tasca($conn, $titol, $descripcio) {
-    global $missatges; // si no desconoce la variable 
+function afegir_tasca($tipusGuardar, $titol, $descripcio) {
+    global  $missatges, $servername, $username, $password, $db, $jsonFile;
+
     if (empty($titol) || empty($descripcio)) {
         echo $missatges["tasca_camps8"];
         return;
     }
+    
+    // AFEGIR SQL
+    if ($tipusGuardar == 'sql') {
+        $conn = mysqli_connect($servername, $username, $password, $db);
+        if (!$conn) {
+            die($missatges["connexio_fallida_sql"]);
+        }
 
-    $query = "INSERT INTO tasques (titol, descripcio) VALUES ('$titol', '$descripcio')";
-    $exec = mysqli_query($conn, $query);
+        $query = "INSERT INTO tasques (titol, descripcio) VALUES ('$titol', '$descripcio')";
+        $exec = mysqli_query($conn, $query);
 
-    if ($exec) {
-        echo $missatges["tasca_afegida"];
-    } else {
-        echo $missatges["tasca_error"];
+        if ($exec) {
+            echo $missatges["tasca_afegida"];
+        } else {
+            echo $missatges["tasca_error"];
+        }
+        mysqli_close($conn);
     }
+
+    // AFEGIR JSON
+    elseif ($tipusGuardar == 'json') {
+        $tasques = carregar_tasquesJSON($jsonFile);
+        $tasques[] = ['id' => count($tasques) + 1, 'titol' => $titol, 'descripcio' => $descripcio, 'estat' => 0];
+        guardarTasquesJSON($jsonFile, $tasques);
+        echo $missatges["tasca_afegida"];
+    }
+    
 }
 
 // EDITAR TASCA
-function editar_tasca($conn, $titol) {
-    global $missatges; // si no desconoce la variable 
+function editar_tasca($tipusGuardar, $titol) {
+    global $missatges, $servername, $username, $password, $db, $jsonFile;
+    
     if (empty($titol)) {
         echo $missatges["tasca_camps8"];
         return;
     }
 
-    $query = "SELECT * FROM tasques WHERE id = '$titol'";
-    $exec = mysqli_query($conn, $query);
-
-    if (mysqli_num_rows($exec) > 0) {
-        $query = "UPDATE tasques SET estat = '1' WHERE id = '$titol'";
+    // EDITAR SQL
+    if ($tipusGuardar == 'sql') {
+        $conn = mysqli_connect($servername, $username, $password, $db);
+        if (!$conn) {
+            die($missatges["connexio_fallida_sql"]);
+        }
+        $query = "SELECT * FROM tasques WHERE id = '$titol'";
         $exec = mysqli_query($conn, $query);
-        echo $missatges["tasca_edit"];
-    } else {
-        echo $missatges["tasca_noedit"];
+
+         if (mysqli_num_rows($exec) > 0) {
+            $row = mysqli_fetch_assoc($exec);
+            if ($row['estat'] == 1) {
+                echo $missatges["tasca_ja_editada"];
+            } else {
+                $query = "UPDATE tasques SET estat = '1' WHERE id = '$titol'";
+                $exec = mysqli_query($conn, $query);
+                echo $missatges["tasca_edit"];
+            }
+        } else {
+            echo $missatges["tasca_noTrobada"];
+        }
+        mysqli_close($conn);
     }
 
+    // EDITAR JSON
+    elseif ($tipusGuardar == 'json') {
+        $tasques = carregar_tasquesJSON($jsonFile);
+        foreach ($tasques as &$tasca) {
+            if ($tasca['id'] == $titol) {
+                if ($tasca['estat'] == 1) {
+                    echo $missatges["tasca_ja_editada"];
+                } else {
+                    $tasca['estat'] = 1;
+                    echo $missatges["tasca_edit"];
+                    guardarTasquesJSON($jsonFile, $tasques);
+                }
+                return;
+            }
+        }
+        echo $missatges["tasca_noTrobada"];
+    }
 }
 
 // LLISTAR TASCA 
-function llistar_tasca($conn) {
+function llistar_tasca($tipusGuardar) {
+    global $missatges, $servername, $username, $password, $db, $jsonFile;
 
-    $query = "SELECT id, titol, descripcio, estat FROM tasques WHERE estat = 0";
-    $exec = mysqli_query($conn, $query);
-
-    $num_rows = mysqli_num_rows($exec);
-
-    if ($num_rows > 0) {
-        echo "LListant tasques pendents:\n";
-        while ($row = mysqli_fetch_assoc($exec)) {
-            echo "ID: " . $row["id"] . ", Títol: " . $row["titol"] . ", Descripció: " . $row["descripcio"] . ", Estat: " . $row["estat"] . "\n";
+    // LLISTAR SQL
+    if ($tipusGuardar == 'sql') {
+        $conn = mysqli_connect($servername, $username, $password, $db);
+        if (!$conn) {
+            die($missatges["connexio_fallida_sql"]);
         }
-    } else {
-        echo "No hi ha tasques pendents.\n";
+        
+        $query = "SELECT id, titol, descripcio, estat FROM tasques WHERE estat = 0";
+        $exec = mysqli_query($conn, $query);
+
+        $num_rows = mysqli_num_rows($exec);
+
+        if ($num_rows > 0) {
+            echo $missatges["llistar_tasques"];
+            while ($row = mysqli_fetch_assoc($exec)) {
+                echo "ID: " . $row["id"] . ", Títol: " . $row["titol"] . ", Descripció: " . $row["descripcio"] . ", Estat: " . $row["estat"] . "\n";
+            }
+        } else {
+            echo $missatges["noTasques_pendents"];
+        }
+        mysqli_close($conn);
+    }
+
+    // LLISTAR JSON
+    elseif ($tipusGuardar == 'json') {
+        $tasques = carregar_tasquesJSON($jsonFile);
+        $tasques_pendents = [];
+        foreach ($tasques as $tasca) {
+            if ($tasca['estat'] == 0) {
+                $tasques_pendents[] = $tasca;
+            }
+        }
+
+        if (count($tasques_pendents) > 0) {
+            echo $missatges["llistar_tasques"];
+            foreach ($tasques_pendents as $tasca) {
+                echo "ID: " . $tasca["id"] . ", Títol: " . $tasca["titol"] . ", Descripció: " . $tasca["descripcio"] . ", Estat: " . $tasca["estat"] . "\n";
+            }
+        } else {
+            echo $missatges["noTasques_pendents"];
+        }
     }
 }
 
 // ELIMINAR TASCA
-function eliminar_tasca($conn, $titol) {
+function eliminar_tasca($tipusGuardar, $titol) {
+    global $missatges, $servername, $username, $password, $db, $jsonFile;
 
     if (empty($titol)) {
-        echo "[Error de sintaxis] Inserta text en el camp.\n";
+        echo $missatges["tasca_camps8"];
         return;
     }
 
-    $query = "SELECT * FROM tasques WHERE id = '$titol'";
-    $exec = mysqli_query($conn, $query);
-    
-    if (mysqli_num_rows($exec) > 0) {
-        $query = "DELETE FROM tasques WHERE id = '$titol'";
+    //ELIMINAR SQL
+    if ($tipusGuardar == 'sql') {
+        $conn = mysqli_connect($servername, $username, $password, $db);
+        if (!$conn) {
+            die($missatges["connexio_fallida_sql"]);
+        }
+
+        $query = "SELECT * FROM tasques WHERE id = '$titol'";
         $exec = mysqli_query($conn, $query);
-        echo "Tasca $titol eliminada amb èxit.\n";
-    } else {
-        echo "No s'ha trobat cap tasca amb l'id $titol.\n";
+        
+        if (mysqli_num_rows($exec) > 0) {
+            $query = "DELETE FROM tasques WHERE id = '$titol'";
+            $exec = mysqli_query($conn, $query);
+            echo str_replace('$titol', $titol, $missatges["tasca_eliminada"]);
+        } else {
+            echo str_replace('$titol', $titol, $missatges["tasca_noTrobada"]);
+        }
+    }
+   
+    // ELIMINAR JSON
+    if ($tipusGuardar == 'json') {
+        $tasques = carregar_tasquesJSON($jsonFile);
+        foreach ($tasques as $index => $tasca) {
+            if ($tasca['id'] == $titol) {
+                array_splice($tasques, $index, 1);
+                echo str_replace('$titol', $titol, $missatges["tasca_eliminada"]);
+                guardarTasquesJSON($jsonFile, $tasques);
+                return;
+            }
+        }
+        echo str_replace('$titol', $titol, $missatges["tasca_noTrobada"]);
     }
 
-}
-
-function help() {
-    echo "\n==============================================================================\n";
-    echo "Això es un gestor de tasques\n";
-    echo "(Recorda que la sintaxis es molt important)\n\n";
-
-    echo "Per afegir:\n";
-    echo "php task_manager -a add -t <títol> -d <descripció>\n";
-    echo "php task_manager --action add --title <títol> --description <descripció>\n";
-    echo "Fins i tot pots barrejar els parametres.\n";
-
-    echo "Per editar:\n"; 
-    echo "php task_manager -a edit -t <id>\n";
-    echo "php task_manager --action edit --title <id> \n";
-    echo "Fins i tot pots barrejar els parametres.\n";
-    
-    
-    echo "Per eliminar:\n";
-    echo "php task_manager -a delete -t <id>\n";
-    echo "php task_manager --action delete --title <id> \n";
-    echo "Fins i tot pots barrejar els parametres.\n";
-
-    echo "Per llistar tasques:\n";
-    echo "php task_manager -a list\n";
-    echo "php task_manager --action list\n";
-    echo "Fins i tot pots barrejar els parametres.\n";
-    echo "==============================================================================\n\n";
 }
 
 
@@ -149,49 +280,38 @@ switch ($options["a"] ?? $options["action"] ?? null) {
             $titol = $options["t"] ?? $options["title"];
             $descripcio = $options["d"] ?? $options["description"];
 
-            afegir_tasca($conn, $titol, $descripcio);
+            afegir_tasca($tipusGuardar, $titol, $descripcio);
         } else {
-            echo "Per afegir una tasca hi ha dos formes:\n";
-            echo "php task_manager -a add -t <títol> -d <descripció>\n";
-            echo "php task_manager --action add --title <títol> --description <descripció>\n";
-            echo "Fins i tot pots barrejar els parametres.\n";
+            echo $missatges["add_help"];
         }
         break;
         
     case "edit":
         if ($argc == 5) {
             $titol = $options["t"] ?? $options["title"];
-            editar_tasca($conn, $titol);
+            editar_tasca($tipusGuardar, $titol);
         } else {
-            echo "Per editar una tasca hi ha dos formes\n";
-            echo "php task_manager -a edit -t <id>\n";
-            echo "php task_manager --action edit --title <id> \n";
-            echo "Fins i tot pots barrejar els parametres.\n";
+            echo $missatges["edit_help"];
         }
         break;
         
     case "delete":
         if ($argc == 5) {
             $titol = $options["t"] ?? $options["title"];
-            eliminar_tasca($conn, $titol);
+            eliminar_tasca($tipusGuardar, $titol);
         } else {
-            echo "Per eliminar una tasca hi ha dos formes\n";
-            echo "php task_manager -a delete -t <id>\n";
-            echo "php task_manager --action delete --title <id> \n";
-            echo "Fins i tot pots barrejar els parametres.\n";
+            echo $missatges["delete_help"];
         }
         break;
     case "list":
         if ($argc == 3) {
-            llistar_tasca($conn);
+            llistar_tasca($tipusGuardar);
         } else {
-            echo "Fins i tot pots barrejar els parametres.\n";
-            echo "php task_manager -a list\n";
-            echo "php task_manager --action list\n";
+            echo $missatges["list_help"];
         }
         break;
     default:
-        help();
+        echo $missatges["help"];
         
 }
 ?>
