@@ -2,7 +2,7 @@
 $servername = "localhost";
 $username = "root";
 $password = "L@p1neda";
-$db = "task";
+$db = "tasks";
 
 $fitxerConf = getenv('HOME') . '/.config/task_manager.cfg';
 $jsonFile = getenv('HOME') . '/.config/task-manager.json';
@@ -32,6 +32,11 @@ if (empty($tipusGuardar)) {
     
     file_put_contents($fitxerConf, "[Main]\nstorage-type = $tipusGuardar\n");
 }
+
+if (substr(php_sapi_name(), 0, 3) != 'cli') {
+    echo $missatges["cli_only"];
+}
+
 
 // SQL
 if ($tipusGuardar == 'sql') {
@@ -251,10 +256,11 @@ function eliminar_tasca($tipusGuardar, $titol) {
         if (mysqli_num_rows($exec) > 0) {
             $query = "DELETE FROM tasques WHERE id = '$titol'";
             $exec = mysqli_query($conn, $query);
-            echo str_replace('$titol', $titol, $missatges["tasca_eliminada"]);
+            echo ["tasca_eliminada"];
         } else {
-            echo str_replace('$titol', $titol, $missatges["tasca_noTrobada"]);
+            echo $missatges["tasca_noTrobada"];
         }
+        mysqli_close($conn);
     }
    
     // ELIMINAR JSON
@@ -263,12 +269,12 @@ function eliminar_tasca($tipusGuardar, $titol) {
         foreach ($tasques as $index => $tasca) {
             if ($tasca['id'] == $titol) {
                 array_splice($tasques, $index, 1);
-                echo str_replace('$titol', $titol, $missatges["tasca_eliminada"]);
+                echo $missatges["tasca_eliminada"];
                 guardarTasquesJSON($jsonFile, $tasques);
                 return;
             }
         }
-        echo str_replace('$titol', $titol, $missatges["tasca_noTrobada"]);
+        echo $missatges["tasca_noTrobada"];
     }
 
 }
